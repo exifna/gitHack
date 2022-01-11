@@ -9,3 +9,4 @@ git = Git(proxies={
     'https' : proxy
 })
 
+print(crud.get_config())

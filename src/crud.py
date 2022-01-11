@@ -1,5 +1,7 @@
+import configparser
 from typing import List
 from src.database import session
+from src.gitTools import Git
 from src.tables import *
 
 
@@ -86,8 +88,31 @@ def add_object(site_id : int, object_type: GitObjectType, download: bool, _hash:
     session.add(obj)
     session.commit()
 
+def addTrigger(trigger : str, session = session):
+    session.add(InterestedFileName(name = trigger))
+    session.commit()
 
-def get_config(session = session) -> dict:
-    d= dict()
-    d['proxies'] = 'socks5://127.0.0.1:9050'
+def deleteTrigger(trigger_id : int, session = session):
+    session.delete(session.query(InterestedFileName).filter(InterestedFileName.id == trigger_id).one())
+    session.commit()
+
+def getTriggerData(session = session) -> List[InterestedFileName]:
+    return session.query(InterestedFileName).all()
+
+def editProxies(proxies : str):
+    git = Git()
+    parser = configparser.ConfigParser()
+    parser['PROXIES'] = {'proxy' : proxies}
+    with open('../../config.cfg', 'w', encoding='utf-8') as f:
+        parser.write(f)
+
+
+
+def get_config() -> dict:
+    git = Git()
+    parser = configparser.ConfigParser()
+    parser.read('../../config.cfg')
+    d = dict()
+    d['proxies'] = parser['PROXIES']['proxy']
+
     return d

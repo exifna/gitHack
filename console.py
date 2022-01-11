@@ -7,7 +7,7 @@ from src import crud, types
 from src.gitTools import Git
 
 title = types.label + 'Выбери с чем ты хочешь работать'
-options = ['Мои сайты', 'Просканировать сайт', 'Конфигурация', 'Google search']
+options = ['Мои сайты', 'Просканировать сайт', 'Конфигурация', 'Google AutoSearch']
 
 
 def clear():
@@ -262,6 +262,48 @@ while True:
                    recurser(site_id, i._hash, '/', i.name)
             except:
                 print(f'Произошла ошибка: {traceback.format_exc()}. {i.name} - {i._hash}')
+
+    if index == 2:
+        actions = ['Назад', 'Триггер-файлы', 'Прокси']
+        while True:
+            option, index_ = pick(actions, types.label + f'> Выбери чтобы ты хотел просмотреть/изменить',
+                                  indicator='=>')
+            if index_ == 0:
+                break
+
+            if index_ == 1:
+                while True:
+                    data = crud.getTriggerData()
+                    actions_ = ['Назад', 'Добавить триггер-файл'] + ['[*] ' + x.name for x in data]
+                    option, index__ = pick(actions_, types.label + f'> Выбери какой триггер добавить', indicator='=>')
+                    if not index__:
+                        break
+
+                    if index__ == 1:
+                        clear()
+                        t = input(types.label + '> Введи триггер (оставь строку пустой если хочешь отменить): ')
+                        if not t:
+                            continue
+
+                        crud.addTrigger(t)
+                        continue
+
+                    clear()
+                    if input(types.label + '> Подтверди удаление [y/д]: ').lower() in ['y', 'yes', 'д', 'да']:
+                        crud.deleteTrigger(data[index__ - 2].id)
+
+            if index_ == 2:
+                clear()
+                t = input(types.label + f'> Прокси сейчас: "{crud.get_config()["proxies"]}"\n> Введи новые прокси, если не хочешь, то оставь поле пустым: ')
+                if not t:
+                    continue
+
+                crud.editProxies(t)
+
+
+
+
+
 
 
 
