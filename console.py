@@ -1,12 +1,12 @@
 import os
+import subprocess
 import traceback
 from datetime import datetime
-
 from pick import pick
 from src import crud, types
 from src.gitTools import Git
 
-title = types.label + 'Выбери что с чем ты хочешь работать'
+title = types.label + 'Выбери с чем ты хочешь работать'
 options = ['Мои сайты', 'Просканировать сайт', 'Конфигурация', 'Google search']
 
 
@@ -37,11 +37,42 @@ def recurser(site_id: int, _hash : str, path: str, name: str):
             if i.Type == types.GitObjectType.blob:
                 if True in [i.name.endswith(x) for x in types.ignore]:
                     continue
-                print(f'Качаю {path + name}/{i.name}')
+                print(f'> Качаю {path + name}/{i.name}')
                 t = git.downloadObject(site, i._hash)
                 crud.add_object(site_id, types.GitObjectType.blob.value,  bool(t), i._hash, path + name + '/', i.name)
     except:
         print(traceback.format_exc().replace('\n', '   |   '))
+
+def recurse_dump(site_id: int, path: str):
+    print(f'> Check folder: {path}')
+    for i in crud.get_folder_data(site_id, path):
+        if i.object_type == types.GitObjectType.tree.value:
+            try:
+                os.mkdir(f'../dumps/{crud.get_site(site_id).site_name}{path}{i.name}')
+                recurse_dump(site_id, path + i.name + '/')
+            except:
+                pass
+        if i.object_type == types.GitObjectType.blob.value:
+            print(f'> Dump {i.path}{i.name}...')
+            if not i.download:
+                text = '-'
+                with open(f'../dumps/{crud.get_site(site_id).site_name}{path}{i.name}', 'w', encoding='utf-8') as f:
+                    f.write(text)
+            else:
+                git = Git()
+                try:
+                    text = subprocess.getoutput(f'git cat-file -p {i._hash}')
+                    with open(f'../dumps/{crud.get_site(site_id).site_name}{path}{i.name}', 'w', encoding='utf-8') as f:
+                        f.write(text)
+
+                except:
+                    try:
+                        os.system(f'git cat-file -p {i._hash} > ../dumps/{crud.get_site(site_id).site_name}{path}{i.name}')
+
+                    except:
+                        print(f'> Can\'t dump {i.path}{i.name} | {i._hash}')
+
+
 
 while True:
 
@@ -58,7 +89,7 @@ while True:
                 break
 
             clear()
-            print('=> Плыз вейт, подгруражаю информацию...')
+            print(types.label + '=> Плыз вейт, подгруражаю информацию...')
             site_name = tmp_data[index - 1].site_name
             site_id = tmp_data[index-1].id
             txt = str(types.label +
@@ -138,6 +169,45 @@ while True:
                         print(types.label +  f'> Подожди, загружаю файл... После загрузки он должен был появится в папке gitFiles/tmp/ с названием "{files[index__ - 1].name}"')
                         git.dumpHash(files[index__ - 1]._hash)
                         input('> Дамп завершён... Нажми <enter> чтобы продолжить.')
+
+                if index_ == 3:
+                    files = crud.get_triggers_site_files(site_id)
+                    t = ['Назад'] + [f'[{"+ скачан" if x.download else "- нету  "} {"/" if x.object_type == types.GitObjectType.tree.value else " "}] ' + str(x.path + x.name) + str("/" if x.object_type == types.GitObjectType.tree.value else "") for x in files]
+                    if not len(t):
+                        clear()
+                        input(types.label +  '> Ничего не найдено...')
+                        break
+
+                    _, index__ = pick(t, types.label + 'Выбери пункт, содержащий нужную тебе информацию. Уточнение: по папкам переходить нельзя', indicator='=>')
+
+                    if not index__:
+                        continue
+
+                    if files[index__ - 1].object_type == types.GitObjectType.tree.value:
+                        clear()
+                        input(types.label + f'Путь: {files[index__ - 1].path + files[index__ - 1].name}/')
+                        break
+
+                    git = Git()
+                    text = git.getObjectData(files[index__ - 1]._hash)
+                    clear()
+                    print_text = types.label + f'> Нажми <enter> чтобы выйти, или напиши download чтобы скачать файл.\n> {"=" * 65} <\n\n{text if text else "> Не удалось получить исходный код..."}\n\n> {"=" * 65} <\n> Нажми <enter> чтобы выйти, или напиши download чтобы скачать файл.\n(input)=> '
+                    tmp = input(print_text)
+                    clear()
+
+                    if tmp == 'download':
+                        print(types.label +  f'> Подожди, загружаю файл... После загрузки он должен был появится в папке gitFiles/tmp/ с названием "{files[index__ - 1].name}"')
+                        git.dumpHash(files[index__ - 1]._hash)
+                        input('> Дамп завершён... Нажми <enter> чтобы продолжить.')
+
+                if index_ == 4:
+                    path = '/'
+                    git = Git()
+                    os.mkdir(f'../dumps/{crud.get_site(site_id).site_name}')
+                    recurse_dump(site_id, path)
+                    print('\n\n> Done.')
+
+
 
                 if index_ == 5:
                     if input('> Вы уверены? ').lower() in ['y', 'yes', 'д', 'да']:

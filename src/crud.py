@@ -36,6 +36,13 @@ def get_last_sites(session = session) -> List[Site]:
 def find_sites(string:str, session = session) -> List[Site]:
     return session.query(Site).filter(Site.site_name.startswith(string)).order_by(-Site.id).limit(10).all()
 
+def get_triggers_site_files(site_id : int, session = session) -> List[GitObject]:
+    result = list()
+    for i in get_interested_files():
+        result.extend(session.query(GitObject).filter(GitObject.site_id == site_id).filter(GitObject.name == i).all())
+
+    return result
+
 
 def add_site(site_name: str, session = session) -> Site:
     site = Site(
