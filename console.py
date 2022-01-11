@@ -1,10 +1,15 @@
 import os
 import subprocess
+import time
 import traceback
 from datetime import datetime
+from time import sleep
+
+import faker
 from pick import pick
 from src import crud, types
 from src.gitTools import Git
+from googlesearch import search
 
 title = types.label + 'Выбери с чем ты хочешь работать'
 options = ['Мои сайты', 'Просканировать сайт', 'Конфигурация', 'Google AutoSearch']
@@ -300,6 +305,64 @@ while True:
 
                 crud.editProxies(t)
 
+    if index == 3:
+        clear()
+        t = input(types.label + f'> Введи запрос, если хочешь отменить - просто жми <enter>: ')
+        if not t:
+            continue
+
+        clear()
+        print(types.label + '> Подожди, получаю информацию...')
+        result = search(t, num_results=1000)
+        res = [{'status': 'wait', 'site' : x.split('://')[-1].split('/')[0]} for x in result]
+        res1 = list()
+        for i in res:
+            if i not in res1:
+                res1.append(i)
+
+        result = res1
+
+        proxy = crud.get_config()['proxies']
+        proxies = {'http' : proxy, 'https' : proxy}
+        git = Git(proxies = proxies)
+        clear()
+
+        print(types.label + f'> Результатов получено: {len(result)}\n')
+
+
+        tmp = 1
+        max_ = len(max([x["site"] for x in res], key=len))
+        out_file = f'../tmp/' + faker.Faker().md5()[:5] + '_' +datetime.now().strftime('%Y-%m-%d %H:%M:%S') + '.txt'
+        f = open(out_file, 'w', encoding='utf-8')
+        def_txt = "=" * 40 + "\n\n" + f'  Сканирование по запросу "{t}" дало {len(res)} результатов.\n\n' + "=" * 40 + '\n\n> Ниже будет лог сайтов на которых были найдены хеши.\n\n'
+        f.write(def_txt)
+        f.close()
+        print(types.label + f'> Проверено: {tmp}/{len(result)}\n> Выходной файл с результатами: gitFiles/tmp/{out_file.split("/")[-1]}\n\n' + '\n'.join([
+            f'({tmp}/{len(result)})> {x["site"]}' + ' ' * (max_ - len(x["site"]) + 5) + x["status"] for x in res
+                ]))
+
+        for i in res:
+            try:
+                print(f'> Checked: {i["site"]}')
+                check = git.getFirstHashes(i['site'])
+                print(f'> Checked: {i["site"]} - {check}')
+                status = 'Detect' if check else 'Not found'
+                i['status'] = status
+                def_txt += f'[{f"{status}":>9}] > {i["site"]} > Found {check} hashes\n'
+                with open(out_file, 'w', encoding='utf-8') as f:
+                    f.write(def_txt)
+                clear()
+                print(types.label + f'> Проверено: {tmp}/{len(result)}\n> Выходной файл с результатами: gitFiles/tmp/{out_file.split("/")[-1]}\n\n' + '\n'.join([
+                    f'({tmp}/{len(result)})> {x["site"]}' + ' ' * (max_ - len(x["site"]) + 5) + x["status"] for x in res
+                ]))
+            except:
+                print(traceback.format_exc())
+            tmp += 1
+
+        print(types.label + f'> Проверено: {tmp}/{len(result)}\n\n\n' + '\n'.join([
+                f'({tmp}/{len(result)})> {x["site"]}' + ' ' * (max_ - len(x["site"]) + 5) + x["status"] for x in res
+            ]) + f'\n\n>> Done.\n>> Check file gitFiles/tmp/{out_file.split("/")[-1]}\n\n>> Press <enter>.')
+        input()
 
 
 
